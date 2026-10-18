@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gobi Market Pay</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/10149/10149373.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold">G</div>
+            <span class="font-bold text-white">Gobi Market Pay</span>
+        </div>
+        <div id="status-badge" class="text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full font-mono">ระบบพนักงาน (/req)</div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex items-center justify-center p-4">
+
+        <!-- 1. หน้าพนักงานสร้างคำร้อง (/req) -->
+        <section id="panel-req" class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div>
+                <h1 class="text-lg font-bold text-white flex items-center gap-2"><span>📝</span> ออกคำร้องเรียกเก็บเงิน</h1>
+                <p class="text-xs text-slate-400 mt-0.5">สแกน FaceID เจ้าของร้าน และคำนวณบวกค่าธรรมเนียม 2% อัตโนมัติ</p>
+            </div>
+
+            <form onsubmit="event.preventDefault(); handleStaffCreate();" class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">ชื่อสินค้า/บริการ</label>
+                    <input type="text" id="req-item" required placeholder="เช่น ค่าบริการระบบ API" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-blue-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">หมวดหมู่</label>
+                        <input type="text" id="req-cat" value="Digital Service" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">จำนวนเงินต้นทาง (บาท)</label>
+                        <input type="number" step="0.01" id="req-amount" required placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-emerald-400 font-bold outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">รายละเอียดเพิ่มเติม</label>
+                    <textarea id="req-details" rows="2" placeholder="รายละเอียดรายการ..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm outline-none resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">บันทึกช่วยจำ (Memo)</label>
+                    <input type="text" id="req-memo" placeholder="บันทึกภายในร้าน" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm outline-none">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg">
+                    🛡️ สแกน FaceID & สร้างคำร้อง
+                </button>
+            </form>
+        </section>
+
+        <!-- 2. หน้าผลลัพธ์พนักงาน (คัดลอกลิงก์ / QR Code) -->
+        <section id="panel-staff-out" class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 hidden">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✓</div>
+                <h2 class="text-lg font-bold text-white">สร้างคำร้องลง Cloud สำเร็จ</h2>
+                <p class="text-xs text-slate-400">คัดลอกลิงก์หรือบันทึก QR Code ส่งให้ลูกค้าได้ทันที</p>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div>
+                    <label class="block text-[10px] text-slate-400 mb-1 font-mono">LINK ชำระเงินของลูกค้า:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="out-link" readonly class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-blue-400 font-mono select-all">
+                        <button onclick="copyLink()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-xs font-bold">คัดลอก</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center pt-2 border-t border-slate-800">
+                    <span class="text-[10px] text-slate-400 mb-2">QR CODE สำหรับสแกนชำระเงิน</span>
+                    <div id="staff-qr-box" class="bg-white p-2 rounded-xl shadow"></div>
+                    <button onclick="downloadStaffQR()" class="mt-3 bg-slate-800 hover:bg-slate-700 text-white text-xs px-4 py-2 rounded-lg font-medium">
+                        📥 บันทึกรูปภาพ QR Code
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-medium text-xs">
+                + สร้างรายการใหม่
+            </button>
+        </section>
+
+        <!-- 3. หน้าลูกค้าชำระเงิน (/payment/[id]) -->
+        <section id="panel-pay" class="w-full max-w-md bg-white text-slate-900 rounded-2xl p-6 shadow-2xl space-y-4 hidden">
+
+            <!-- Step 1: ข้อความต้อนรับ & แจ้งค่าธรรมเนียม 2% -->
+            <div id="step-1" class="text-center space-y-4 py-2">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-3xl">🛒</div>
+                <h2 class="text-xl font-bold">พนักงานส่งคำร้องให้คุณชำระเงิน</h2>
+                
+                <div class="bg-slate-50 border p-4 rounded-xl text-left space-y-2 text-xs">
+                    <p><strong>รายการ:</strong> <span id="disp-item" class="font-semibold"></span></p>
+                    <p><strong>ราคาสินค้า:</strong> ฿<span id="disp-base"></span></p>
+                    <p><strong>ค่าธรรมเนียมบริการ Payment Gateway (2%):</strong> ฿<span id="disp-fee" class="text-amber-600 font-bold"></span></p>
+                    <div class="border-t pt-2 flex justify-between items-center text-sm font-bold text-blue-600">
+                        <span>ยอดรวมสุทธิที่ต้องชำระ:</span>
+                        <span class="text-lg">฿<span id="disp-total"></span></span>
+                    </div>
+                </div>
+
+                <!-- ข้อความแจ้งการบวกค่าธรรมเนียม 2% ชัดเจน -->
+                <div class="bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3.5 rounded-xl text-left space-y-1">
+                    <p class="font-bold flex items-center gap-1">
+                        <span>⚠️</span> หมายเหตุการชำระเงิน:
+                    </p>
+                    <p>
+                        ในการกด <strong>"ชำระเงิน"</strong> ระบบจะนำท่านไปยังตัวกลางชำระเงิน โดยยอดชำระจะรวม <strong>ค่าธรรมเนียมบริการ Payment Gateway จำนวน 2%</strong> เรียบร้อยแล้ว โปรดตรวจสอบข้อมูลให้ถูกต้องก่อนทำรายการ
+                    </p>
+                </div>
+
+                <button onclick="goToStep(2)" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm shadow">
+                    ชำระเงิน (ยอมรับค่าธรรมเนียม 2%)
+                </button>
+            </div>
+
+            <!-- Step 2: เลือกตัวกลางจ่ายเงิน (EasySlip SCB / SCB Open API / TrueMoney Merchant) -->
+            <div id="step-2" class="space-y-4 hidden">
+                <h3 class="font-bold border-b pb-2 text-sm flex justify-between">
+                    <span>เลือกระบบตัวกลางชำระเงิน</span>
+                    <span id="disp-txid" class="text-xs font-mono text-slate-400"></span>
+                </h3>
+
+                <div class="bg-blue-50 border border-blue-200 text-blue-900 text-xs p-3 rounded-xl">
+                    โอนตรงเข้าบัญชีร้านค้า: <strong>ธนาคารไทยพาณิชย์ (SCB)</strong>
+                </div>
+
+                <div class="space-y-2.5">
+                    <button onclick="redirectToGateway('EASYSLIP_PROMPTPAY')" class="w-full p-3.5 border-2 border-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl text-left font-bold text-xs text-blue-900 flex justify-between items-center transition">
+                        <div>
+                            <div>💳 พร้อมเพย์ QR (EasySlip Verification)</div>
+                            <div class="text-[10px] text-blue-600 font-normal mt-0.5">สแกนจ่ายเงินเข้า SCB + ตรวจสอบสลิปอัตโนมัติ</div>
+                        </div>
+                        <span>➔ จ่าย</span>
+                    </button>
+
+                    <button onclick="redirectToGateway('SCB_OPEN_API')" class="w-full p-3.5 border-2 border-purple-500 bg-purple-50 hover:bg-purple-100 rounded-xl text-left font-bold text-xs text-purple-900 flex justify-between items-center transition">
+                        <div>
+                            <div>🏦 ธนาคาร SCB (Open API / Easy App)</div>
+                            <div class="text-[10px] text-purple-600 font-normal mt-0.5">ชำระตรงผ่านแอป SCB EASY / QR แม่มณี</div>
+                        </div>
+                        <span>➔ จ่าย</span>
+                    </button>
+
+                    <button onclick="redirectToGateway('TRUEMONEY_MERCHANT')" class="w-full p-3.5 border-2 border-orange-500 bg-orange-50 hover:bg-orange-100 rounded-xl text-left font-bold text-xs text-orange-900 flex justify-between items-center transition">
+                        <div>
+                            <div>🟠 ทรูมันนี่ วอเลท (TrueMoney Merchant)</div>
+                            <div class="text-[10px] text-orange-600 font-normal mt-0.5">ชำระผ่าน TrueMoney Merchant API</div>
+                        </div>
+                        <span>➔ จ่าย</span>
+                    </button>
+                </div>
+
+                <p class="text-[10px] text-red-500 text-center font-medium">
+                    * โปรดตรวจสอบข้อมูลให้ถูกต้องก่อนชำระเงิน ไม่สามารถขอคืนเงินได้ในทุกกรณี
+                </p>
+            </div>
+
+            <!-- Step 3: จ่ายเสร็จสิ้น + ออกใบเสร็จ -->
+            <div id="step-3" class="text-center space-y-4 py-2 hidden">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">✓</div>
+                <h2 class="text-xl font-bold text-slate-900">ขอบคุณที่ใช้บริการ</h2>
+                <p class="text-xs text-emerald-600 font-bold">ชำระเงินแล้ว (ยืนยันจากตัวกลางชำระเงิน)</p>
+
+                <div id="receipt-card" class="bg-slate-50 border p-4 rounded-xl text-left space-y-2 text-xs text-slate-700 shadow-inner">
+                    <div class="flex justify-between border-b pb-2">
+                        <span class="font-bold text-slate-900">ใบเสร็จ Gobi Market</span>
+                        <span id="rc-date" class="text-[10px] text-slate-400"></span>
+                    </div>
+                    <p><strong>เลขอ้างอิง:</strong> <span id="rc-txid"></span></p>
+                    <p><strong>รายการ:</strong> <span id="rc-item"></span></p>
+                    <p><strong>ราคาสินค้า:</strong> ฿<span id="rc-base"></span></p>
+                    <p><strong>ค่าธรรมเนียม Gateway (2%):</strong> ฿<span id="rc-fee"></span></p>
+                    <p><strong>ยอดชำระสุทธิ:</strong> ฿<span id="rc-total" class="font-bold text-emerald-600"></span></p>
+                    <p><strong>รับเงินเข้าบัญชี:</strong> ธนาคารไทยพาณิชย์ (SCB)</p>
+                    <div class="pt-2 flex items-center justify-between border-t mt-2">
+                        <div>
+                            <p class="text-[9px] text-slate-400">สแกนตรวจสอบสิทธิ์ (เฉพาะเจ้าของร้าน)</p>
+                            <p class="text-[9px] text-red-500">ข้อมูลลบอัตโนมัติใน 7 วัน</p>
+                        </div>
+                        <div id="rc-qrcode" class="w-14 h-14 bg-white p-1 border"></div>
+                    </div>
+                </div>
+
+                <button onclick="downloadBill()" class="w-full bg-slate-900 hover:bg-black text-white py-3 rounded-xl font-bold text-sm shadow">
+                    📥 บันทึกรูปภาพบิล / ใบเสร็จ
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-3 text-center text-[10px] text-slate-500 border-t border-slate-800 bg-slate-900">
+        Gobi Market © 2026 • Powered by Vercel, SCB & EasySlip
+    </footer>
+
+    <!-- Script Logic -->
+    <script>
+        let currentTxData = null;
+
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const txId = urlParams.get('tx');
+            const status = urlParams.get('status');
+
+            if (txId) {
+                const res = await fetch(`/api/get-request?txId=${txId}`);
+                if (res.ok) {
+                    currentTxData = await res.json();
+
+                    if (status === 'success' || currentTxData.status === 'PAID') {
+                        showStep3Success();
+                    } else {
+                        showCustomerStep1();
+                    }
+                } else {
+                    alert("ไม่พบรายการชำระเงินนี้ หรือรายการอาจหมดอายุไปแล้ว (เกิน 7 วัน)");
+                }
+            }
+        };
+
+        // 1. พนักงานสร้างคำร้อง
+        async function handleStaffCreate() {
+            if (window.confirm("🛡️ ยืนยันตัวตนเจ้าของร้านด้วย FaceID / Biometrics")) {
+                const payload = {
+                    item: document.getElementById('req-item').value,
+                    category: document.getElementById('req-cat').value,
+                    amount: document.getElementById('req-amount').value,
+                    details: document.getElementById('req-details').value,
+                    memo: document.getElementById('req-memo').value
+                };
+
+                const res = await fetch('/api/create-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    currentTxData = result.data;
+                    const fullUrl = window.location.origin + '?tx=' + result.txId;
+                    document.getElementById('out-link').value = fullUrl;
+
+                    document.getElementById('staff-qr-box').innerHTML = '';
+                    new QRCode(document.getElementById('staff-qr-box'), { text: fullUrl, width: 120, height: 120 });
+
+                    document.getElementById('panel-req').classList.add('hidden');
+                    document.getElementById('panel-staff-out').classList.remove('hidden');
+                    document.getElementById('status-badge').innerText = 'พร้อมส่งลิงก์';
+                }
+            }
+        }
+
+        function copyLink() {
+            const input = document.getElementById('out-link');
+            input.select();
+            navigator.clipboard.writeText(input.value);
+            alert("คัดลอกลิงก์สำเร็จ!");
+        }
+
+        function downloadStaffQR() {
+            html2canvas(document.getElementById('staff-qr-box')).then(canvas => {
+                const a = document.createElement('a');
+                a.download = `QR-${currentTxData.id}.png`;
+                a.href = canvas.toDataURL();
+                a.click();
+            });
+        }
+
+        // 2. แสดงหน้าลูกค้า
+        function showCustomerStep1() {
+            document.getElementById('panel-req').classList.add('hidden');
+            document.getElementById('panel-pay').classList.remove('hidden');
+
+            document.getElementById('disp-item').innerText = currentTxData.item;
+            document.getElementById('disp-base').innerText = Number(currentTxData.baseAmount).toLocaleString();
+            document.getElementById('disp-fee').innerText = Number(currentTxData.feeAmount).toLocaleString();
+            document.getElementById('disp-total').innerText = Number(currentTxData.totalAmount).toLocaleString();
+            document.getElementById('disp-txid').innerText = currentTxData.id;
+
+            document.getElementById('status-badge').innerText = 'หน้าชำระเงิน';
+            document.getElementById('status-badge').className = 'text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-mono';
+        }
+
+        function goToStep(step) {
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-' + step).classList.remove('hidden');
+        }
+
+        // 3. Redirect ไปยังตัวกลางชำระเงินต่างๆ (EasySlip, SCB Open API, TrueMoney Merchant)
+        function redirectToGateway(gatewayType) {
+            const returnUrl = encodeURIComponent(window.location.origin + '?tx=' + currentTxData.id + '&status=success');
+
+            let gatewayUrl = '';
+
+            if (gatewayType === 'EASYSLIP_PROMPTPAY') {
+                // ลิงก์ไปตัวกลาง EasySlip PromptPay
+                gatewayUrl = `https://easyslip.com/pay?merchant_scb=GOBI_STORE&amount=${currentTxData.totalAmount}&ref=${currentTxData.id}&return_url=${returnUrl}`;
+            } else if (gatewayType === 'SCB_OPEN_API') {
+                // ลิงก์ไป SCB Open API / QR แม่มณี
+                gatewayUrl = `https://api.scb.co.th/open-api/v1/payment/deeplink?amount=${currentTxData.totalAmount}&ref1=${currentTxData.id}&return_url=${returnUrl}`;
+            } else if (gatewayType === 'TRUEMONEY_MERCHANT') {
+                // ลิงก์ไป TrueMoney Merchant API
+                gatewayUrl = `https://merchant.truemoney.com/pay?amount=${currentTxData.totalAmount}&ref=${currentTxData.id}&return_url=${returnUrl}`;
+            }
+
+            if (confirm(`คุณกำลังเดินทางไปยังหน้าตัวกลางชำระเงิน ยอดสุทธิ ฿${currentTxData.totalAmount} (รวมค่าธรรมเนียม 2% แล้ว)`)) {
+                window.location.href = gatewayUrl;
+            }
+        }
+
+        function showStep3Success() {
+            document.getElementById('panel-req').classList.add('hidden');
+            document.getElementById('panel-pay').classList.remove('hidden');
+            goToStep(3);
+
+            document.getElementById('rc-txid').innerText = currentTxData.id;
+            document.getElementById('rc-item').innerText = currentTxData.item;
+            document.getElementById('rc-base').innerText = Number(currentTxData.baseAmount).toLocaleString();
+            document.getElementById('rc-fee').innerText = Number(currentTxData.feeAmount).toLocaleString();
+            document.getElementById('rc-total').innerText = Number(currentTxData.totalAmount).toLocaleString();
+            document.getElementById('rc-date').innerText = new Date().toLocaleDateString('th-TH');
+
+            document.getElementById('rc-qrcode').innerHTML = '';
+            new QRCode(document.getElementById('rc-qrcode'), {
+                text: "https://gobi-market.com/verify?tx=" + currentTxData.id,
+                width: 50,
+                height: 50
+            });
+        }
+
+        function downloadBill() {
+            html2canvas(document.getElementById('receipt-card')).then(canvas => {
+                const a = document.createElement('a');
+                a.download = `Receipt-${currentTxData.id}.png`;
+                a.href = canvas.toDataURL();
+                a.click();
+            });
+        }
+    </script>
+</body>
+</html>
