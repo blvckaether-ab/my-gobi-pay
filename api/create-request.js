@@ -8,29 +8,34 @@ export default async function handler(req, res) {
   try {
     const { item, category, amount, details, memo } = req.body;
 
-    // 1. คำนวณค่าธรรมเนียม Payment Gateway (เช่น 1.5% ของยอดสินค้า)
     const baseAmount = parseFloat(amount);
-    const feeRate = 0.015; // 1.5%
-    const feeAmount = baseAmount * feeRate;
-    const totalAmount = (baseAmount + feeAmount).toFixed(2); // ยอดสุทธิที่ลูกค้าต้องจ่ายจริง
+    if (isNaN(baseAmount) || baseAmount <= 0) {
+      return res.status(400).json({ error: 'จำนวนเงินไม่ถูกต้อง' });
+    }
 
-    // 2. สร้าง Transaction ID
+    // กำหนดค่าธรรมเนียม Payment Gateway ที่ 2% (0.02)
+    const feeRate = 0.02; 
+    const feeAmount = baseAmount * feeRate;
+    const totalAmount = (baseAmount + feeAmount).toFixed(2);
+
     const txId = 'GOBI-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const payload = {
       id: txId,
-      item,
-      category: category || 'General',
-      baseAmount,
+      item: item || 'สินค้า/บริการ Gobi Market',
+      category: category || 'Digital Service',
+      baseAmount: baseAmount.toFixed(2),
       feeAmount: feeAmount.toFixed(2),
-      totalAmount,
+      feePercentage: '2%',
+      totalAmount: totalAmount, // ยอดสุทธิที่ลูกค้าต้องชำระ
       details: details || '-',
       memo: memo || '-',
       status: 'PENDING',
+      bankName: 'ธนาคารไทยพาณิชย์ (SCB)',
       createdAt: new Date().toISOString()
     };
 
-    // 3. บันทึกลง Vercel KV (ตั้งเวลาลบอัตโนมัติ 7 วัน = 604800 วินาที)
+    // บันทึกลง Vercel KV Database (กำหนด TTL ลบอัตโนมัติใน 7 วัน = 604800 วินาที)
     await kv.set(`tx:${txId}`, JSON.stringify(payload), { ex: 604800 });
 
     return res.status(200).json({
